@@ -1,0 +1,83 @@
+﻿
+@if (ShowConfirmation)
+{
+    <div class="modal fade show d-block" id="exampleModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content bg-light shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">@DialogTitle</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close" @onclick="() => OnConfirmation(false)">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    @DialogMessage
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" @onclick="() => OnConfirmation(false)">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="() => OnConfirmation(true)">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (ShowMessage)
+{
+    <div class="modal fade show d-block" id="exampleModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content bg-light shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">@DialogTitle</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close" @onclick="() => OnDismissMessage()">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    @DialogMessage
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal" @onclick="() => OnDismissMessage()">Ok</button>                    
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code
+{
+    private bool ShowConfirmation;
+
+    private bool ShowMessage;
+
+    [Parameter] public string DialogTitle { get; set; }
+
+    [Parameter] public string DialogMessage { get; set; }
+
+    [Parameter] public EventCallback<bool> ConfirmationCallback { get; set; }
+
+    public void ShowDialog_Confirmation()
+    {
+        ShowConfirmation = true;
+        // Below builtin method will tell this component that its state has changed and re-render it
+        StateHasChanged();
+    }
+
+    public void ShowDialog_Message()
+    {
+        ShowMessage = true;
+        StateHasChanged();
+    }
+
+    protected async Task OnConfirmation(bool value)
+    {
+        ShowConfirmation = false;
+        await ConfirmationCallback.InvokeAsync(value);
+    }
+
+    protected async Task OnDismissMessage()
+    {
+        ShowMessage = false;
+        await ConfirmationCallback.InvokeAsync(true);
+    }
+}

@@ -1,0 +1,139 @@
+﻿@page "/EditUserDetails/{email}"
+
+<AuthorizeView>
+    <Authorized>
+        @if (detailsConfirmed)
+        {
+            <div class="py-5">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div>
+                                <p></p>
+                                <h4> Thank you. Your details have been confirmed. An email requesting your account activation has been sent to the IT department.</h4>
+                                <h4> You will receive a notification email once your account has been activated. You may then login to the system.</h4>
+                                <p></p>
+                                <p></p>
+                                <h5 class="text-success">You may close this page</h5>
+                                <p></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="py-3" style="">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-8 p-4">
+                            <h1>Add Your Details</h1>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 p-4" style="">
+                            <form>
+                                <div class="form-row">
+                                    <div class="form-group col-md-6"> <input type="text" class="form-control" id="form35" placeholder="@email" disabled></div>
+                                    <div class="form-group col-md-6"> <input type="text" class="form-control" id="form36" placeholder="First Name" @bind="@firstName"> </div>
+                                    <div class="form-group col-md-6"> <input type="text" class="form-control" id="form37" placeholder="Last Name" @bind="@lastName"> </div>
+                                    <div class="form-group col-md-6"> <input type="text" class="form-control" id="form38" placeholder="Contact Number" @bind="@contactNumber"> </div>
+                                </div>
+                                <div class="form-group"> </div> <button type="button" class="btn btn-primary" @onclick="Submit_Click">Submit</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@** refer to notes (EVENTCALLBACK) for the below*@
+<MMDialogs ConfirmationCallback="ReturnedDialogResultSuccess" @ref="SuccessDialog" DialogTitle="User Details Confirmed"
+           DialogMessage=@($"Your details were saved successfully.")></MMDialogs>
+
+<MMDialogs ConfirmationCallback="ReturnedDialogResultError" @ref="ErrorDialog" DialogTitle="User Details Error"
+           DialogMessage=@($"Please make sure you have entered all your details.")></MMDialogs>
+
+@code
+{
+    [Parameter]
+    public string email { get; set; }
+
+    [Inject] private IUserRoleService userRoleService { get; set; }
+    [Inject] private IUserDetailsService userDetailsService { get; set; }
+    [Inject] private NavigationManager navigationManager { get; set; }
+    protected MMDialogs SuccessDialog { get; set; }
+    protected MMDialogs ErrorDialog { get; set; }
+    protected EmailSender emailSender { get; set; } = new EmailSender();
+
+    private string firstName;
+    private string lastName;
+    private string contactNumber;
+    private string userGuid;
+    private bool detailsConfirmed = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userIdentity = await userRoleService.GetUserIdentityAsync(email);
+        userGuid = userIdentity.Id;
+    }
+
+    private async Task Submit_Click()
+    {
+        if (firstName == null || lastName == null || contactNumber == null)
+        {
+            ErrorDialog.ShowDialog_Message();
+        }
+        else
+        {
+            // Create the user in UserDetails table
+            UserDetail details = new UserDetail();
+            details.FirstName = firstName;
+            details.LastName = lastName;
+            details.Email = email;
+            details.GUID = userGuid;
+            details.ContactNumber = contactNumber;
+            await userDetailsService.AddUserDetailsAsync(details);
+
+            // Check if the Role 'Users' exist, if not then create it
+            bool roleExists = await userRoleService.DoesRoleExistAsync("Users");
+            if(!roleExists)
+            {
+                await userRoleService.CreateNewRoleAsync("Users");
+            }
+
+            // Add the user to the 'Users' role by default. Can be changed at a later stage from the Usermanager page
+            await userRoleService.AddUserToRoleAsync(email, "Users");
+            await userRoleService.SetInfifiteLockOutEndDate(email);
+            await userRoleService.DisableUserAsync(email); // User is disabled by default when above is executed but this is just in case
+
+            SuccessDialog.ShowDialog_Message();
+        }
+    }
+
+    private void ReturnedDialogResultError()
+    {
+
+    }
+
+    private async Task ReturnedDialogResultSuccess()
+    {
+        detailsConfirmed = true;
+
+        // Send an email to IT dept notifying that a new user was created and pending activation
+        string mailBody = $"<b><p>Message from {StaticData._companyName}</p>"
+        + $"<p>New user account has been created</p><hr />"
+        + $"<p>DETAILS</p>"
+        + $"<p>User login: {email}</p>"
+        + $"<p>Date: {DateTime.Now}</p>"
+        + $"<p>Check and activate the account</p></b>"
+        + $"<hr />";
+
+        await emailSender.MM_SendEmailAsync(StaticData._adminEmailAddress, "New user account created", mailBody);
+
+        //navigationManager.NavigateTo("Identity/Account/LogOut");
+    }
+}

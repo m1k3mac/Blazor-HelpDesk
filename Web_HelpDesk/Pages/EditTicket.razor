@@ -1,0 +1,460 @@
+﻿@page "/EditTicket/{ticketId}"
+@attribute [Authorize(Roles = "Administrators, Support")]
+
+@if (ticket == null || categories == null || departments == null)
+{
+    <div class="loader"></div>
+}
+else
+{
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <!-- Ticket Main Detail Section -->
+                <div class="table-responsive">
+                    <div class="table">
+                        <table class="table table-light table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Ticket</th>
+                                    <th>Logged</th>
+                                    <th>Creator</th>
+                                    <th>Subject</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Assigned to</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    @if (ticket != null && ticket.Status != null)
+                                    {
+                                        <td>@ticket.Id</td>
+                                        <td>@ticket.Logged</td>
+                                        <td>@ticket.Creator</td>
+                                        <td>@ticket.Subject</td>
+                                        <td>@ticket.Priority.PriorityLevel</td>
+                                        <td>@ticket.Status.TicketStatus</td>
+                                        <td>@ticket.Assignee</td>
+                                    }
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding-top: 20px" class="col-md-3">
+                <div class="card small">
+                    <div class="card-header"><h5>Additional Info</h5></div>
+                    <div class="card-body">
+                        <blockquote class="blockquote mb-0">
+                            <h6>Location: @ticket.Location</h6>
+                            <h6>Department: @ticket.Department</h6>
+                            <h6>Category: @ticket.Category</h6>
+                            <h6>Alt Contact: @ticket.AltContactNumber</h6>
+                            <h6>Email: @ticket.EmailAddress</h6>
+                        </blockquote>
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding-top: 20px" class="col-md-3">
+                @*<h6><b>If ticket category is incorrect, change it to:</b></h6>*@
+                <select class="form-control" id="problemtype" style="height:auto" @onchange="@ChangeCategoryEvent">
+                    <option>Change Ticket Category</option>
+                    @foreach (var item in categories)
+                    {
+                        <option value="@item.ProblemType">@item.ProblemType</option>
+                    }
+                </select>
+
+                <p></p>
+                @*<h6><b>If department is incorrect, change it to:</b></h6>*@
+                <select class="form-control" id="problemtype" style="height:auto" @onchange="@ChangeDepartmentEvent">
+                    <option>Change Department</option>
+                    @foreach (var item in departments)
+                    {
+                        <option value="@item.DepartmentName">@item.DepartmentName</option>
+                    }
+                </select>
+
+            </div>            
+
+            <!-- Ticket Comments Section -->
+            <div class="col-md-12">
+                <div style="padding-top: 40px"><h3 class="text-dark font-weight-bold">History</h3></div>
+                <table class="table table-active">
+                    <thead>
+                        <tr>
+                            <th>Logged</th>
+                            <th>Comment</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (ticketDetails != null)
+                        {
+                            foreach (var comment in ticketDetails)
+                            {
+                                <tr>
+                                    <td>@comment.DateTime</td>
+                                    <td>@comment.Comments</td>
+                                </tr>
+                            }
+                        }
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6" style="">
+        <form>
+
+            @if (ticket.Status != null && ticket.Status.TicketStatus == "Closed")
+            {
+                <div><h6 style="padding-top:30px" font-style:italic">Add new comment line</h6></div>
+                <div class="form-group">
+                    <textarea class="form-control" id="form43" rows="3" placeholder="comment..." disabled></textarea>
+                </div>
+
+                <div class="form-group">
+                    <button type="button" class="btn btn-primary" disabled>Add Comment</button>
+                    <button type="button" class="btn btn-warning" disabled>Place On Hold</button>
+                    <button type="button" class="btn btn-danger" disabled>Close Ticket</button>
+                </div>
+            }
+            else if ($"{loggedOnUserDetails.FirstName} {loggedOnUserDetails.LastName}" != ticket.Assignee)
+            {
+                <div><h6 style="padding-top:30px" font-style:italic">Add new comment line</h6></div>
+                <div class="form-group">
+                    <textarea class="form-control" id="form43" rows="3" placeholder="comment..." disabled></textarea>
+                </div>
+
+                <div class="form-group">
+                    <button type="button" class="btn btn-danger" @onclick="ClaimTicket_Click">Claim Ticket</button>
+                </div>
+            }
+            else
+            {
+                <div><h6 style="padding-top:30px" font-style:italic">Add new comment line</h6></div>
+                <div class="form-group">
+                    <textarea class="form-control" id="form43" rows="3" placeholder="comment..." @bind="@additionalComments"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <button type="button" class="btn btn-primary" @onclick="AddComment_Click">Add Comment</button>
+                    @if (ticket.Status != null && ticket.Status.TicketStatus == "On Hold")
+                    {
+                        <button type="button" class="btn btn-warning" disabled>Place On Hold</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-warning" @onclick="PlaceOnHold_Click">Place On Hold</button>
+                    }
+                    <button type="button" class="btn btn-danger" @onclick="CloseTicket_Click">Close Ticket</button>
+                </div>
+            }
+        </form>
+    </div>
+
+    <MMDialogs @ref="closeTicketConfirmationDialog" ConfirmationCallback="ReturnedDialogResult_CloseTicket"
+               DialogTitle="@($"Close Ticket: {ticketId}")" DialogMessage=@($"Sure you want to close this ticket?")>
+    </MMDialogs>
+
+    <MMDialogs @ref="placeTicketOnHoldConfirmationDialog" ConfirmationCallback="ReturnedDialogResult_PlaceTicketOnHold"
+               DialogTitle="@($"Place On Hold Ticket: { ticketId}")" DialogMessage=@($"Place this ticket on hold?")>
+    </MMDialogs>
+
+    <MMDialogs @ref="errorDialog"
+               DialogTitle="@($"Missing Data")" DialogMessage=@($"You need to add a comment before proceeding")>
+    </MMDialogs>
+
+    <MMDialogs @ref="UpdatedDialog" ConfirmationCallback="ReturnedDialogResult_TicketUpdated"
+               DialogTitle="@($"Ticket Updated")" DialogMessage=@($"Your updates have been saved")>
+    </MMDialogs>
+
+    <MMDialogs @ref="claimTicketConfirmationDialog" ConfirmationCallback="ReturnedDialogResult_ClaimTicket"
+               DialogTitle="@($"Claim Ticket: {ticketId}")" DialogMessage=@($"Ticket is currently assigned to: {ticket.Assignee}. Are you sure you want to claim this ticket?")>
+    </MMDialogs>
+}
+
+
+@code
+{
+    [CascadingParameter]
+    public Task<AuthenticationState> authenticationStateTask { get; set; } // refer to notes [AUTHENTICATION and PAGES]
+    [Parameter] public string ticketId { get; set; }
+    [Inject] private ITicketService ticketService { get; set; }
+    [Inject] private IUserDetailsService userDetailsService { get; set; }
+    [Inject] private NavigationManager navigationManager { get; set; }
+    [Inject] private IAdditionalCriteria criteriaService { get; set; }
+
+    protected MMDialogs closeTicketConfirmationDialog { get; set; }
+    protected MMDialogs claimTicketConfirmationDialog { get; set; }
+    protected MMDialogs placeTicketOnHoldConfirmationDialog { get; set; }
+    protected MMDialogs errorDialog { get; set; }
+    protected MMDialogs UpdatedDialog { get; set; }
+    protected EmailSender emailSender { get; set; } = new EmailSender();
+    private string additionalComments;
+    public UserDetail loggedOnUserDetails;
+    private int assigneeId = 3;
+
+    private Ticket ticket { get; set; }
+    private TicketDetail ticketDetail { get; set; } = new TicketDetail();
+    private IEnumerable<TicketDetail> ticketDetails { get; set; }
+    private IEnumerable<Category> categories { get; set; }
+    private IEnumerable<Department> departments { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState = await authenticationStateTask;
+        var currentUser = (await authenticationStateTask).User;
+        loggedOnUserDetails = await userDetailsService.GetUserDetailsAsync(currentUser.Identity.Name);
+
+        ticket = await ticketService.GetTicketAsync(int.Parse(ticketId));
+        ticketDetails = await ticketService.GetTicketDetailsAsync(int.Parse(ticketId));
+        categories = await criteriaService.GetCategoriesAsync();
+        departments = await criteriaService.GetDepartmentsAsync();
+    }
+
+    private async Task ChangeCategoryEvent(ChangeEventArgs e)
+    {
+        // If the new selected category does not match the existing assigned category
+        if (ticket.Category != e.Value.ToString())
+        {
+            ticket.Category = e.Value.ToString();
+            await ticketService.UpdateTicketAsync(ticket);
+        }
+
+        UpdatedDialog.ShowDialog_Message();
+    }
+
+    private async Task ChangeDepartmentEvent(ChangeEventArgs e)
+    {
+        // If the new selected department does not match the existing assigned department
+        if (ticket.Department != e.Value.ToString())
+        {
+            ticket.Department = e.Value.ToString();
+            await ticketService.UpdateTicketAsync(ticket);
+        }
+
+        UpdatedDialog.ShowDialog_Message();
+    }
+
+    private async Task AddComment_Click()
+    {
+        if (additionalComments != null)
+        {
+            // Check if ticket is on hold, if so then place it back in status 2 (open)
+            if (ticket.Status.TicketStatus == "On Hold")
+            {
+                ticket.Id = int.Parse(ticketId);
+                ticket.StatusId = 2;
+                await ticketService.UpdateTicketAsync(ticket, $"Resumed: {additionalComments}");
+            }
+            else
+            {
+                ticketDetail.TicketId = int.Parse(ticketId);
+                ticketDetail.Comments = additionalComments;
+                await ticketService.AddCommentAsync(ticketDetail);
+
+                // Send the user an email notifying that a comment was added
+                List<string> recipients = new List<string>();
+                recipients.Add(ticket.EmailAddress);
+
+                // Check if other users are to receive notifications for this department.
+                var additionalNotifications = await criteriaService.GetAdditionalNotificationsByDeptAsync(ticket.Department);
+                if (additionalNotifications.Count() > 0)
+                {
+                    foreach (var item in additionalNotifications)
+                    {
+                        if(item.UserDetail.Email != ticket.EmailAddress) // do not add users email a second time
+                            recipients.Add(item.UserDetail.Email);
+                    }
+                }
+
+                string mailBody = $"<b><p>Message from {StaticData._companyName}</p>"
+                + $"<p>YOUR TICKET HAS BEEN UPDATED</p><hr />"
+                + $"<p>DETAILS</p>"
+                + $"<p>Ticket: {ticket.Id}</p>"
+                + $"<p>Assigned to: {ticket.Assignee}</p>"
+                + $"<p>Date: {DateTime.Now}</p>"
+                + $"<p>Subject: {ticket.Subject}</p>"
+                + $"<p>Update: {additionalComments}</p>"
+                + $"<p>If you wish to respond please <a href='https://www.helpdesk.com/ViewTicket/ {ticket.Id}'>click this link</a></p></b>"
+                + $"<hr />";
+
+                await emailSender.MM_SendEmailAsync(recipients, $"YOUR TICKET: {ticket.Id} HAS BEEN UPDATED", mailBody);
+            }
+
+
+            //additionalComments = null;
+            //navigationManager.NavigateTo($"/EditTicket/{ticketId}",true);
+            //navigationManager.NavigateTo("/");//,true); // Had to force reload page because was having an issue where more than one task was accessing dbContext!
+            navigationManager.NavigateTo($"/EditTicket/{ticket.Id}", true);
+        }
+        else
+        {
+            errorDialog.ShowDialog_Message();
+        }
+    }
+
+    private void CloseTicket_Click()
+    {
+        if (additionalComments != null)
+        {
+            closeTicketConfirmationDialog.ShowDialog_Confirmation();
+        }
+        else
+        {
+            errorDialog.ShowDialog_Message();
+        }
+
+    }
+
+    private void PlaceOnHold_Click()
+    {
+        if (additionalComments != null)
+        {
+            placeTicketOnHoldConfirmationDialog.ShowDialog_Confirmation();
+        }
+        else
+        {
+            errorDialog.ShowDialog_Message();
+        }
+    }
+
+    protected async Task ReturnedDialogResult_CloseTicket(bool result)
+    {
+        if (result)
+        {
+            // Close the ticket. Also add a comment line and prefix with "Ticket Closed"
+            ticket.Id = int.Parse(ticketId);
+            ticket.StatusId = 3;
+            await ticketService.UpdateTicketAsync(ticket, $"Ticket Closed: {additionalComments}");
+
+            // Send the user an email notifying that ticket has been closed
+            List<string> recipients = new List<string>();
+            recipients.Add(ticket.EmailAddress);
+
+            // Check if other users are to receive notifications for this department.
+            var additionalNotifications = await criteriaService.GetAdditionalNotificationsByDeptAsync(ticket.Department);
+            if (additionalNotifications.Count() > 0)
+            {
+                foreach (var item in additionalNotifications)
+                {
+                    if (item.UserDetail.Email != ticket.EmailAddress) // do not add users email a second time
+                        recipients.Add(item.UserDetail.Email);
+                }
+            }
+
+            string mailBody = $"<b><p>Message from {StaticData._companyName}</p>"
+            + $"<p>YOUR TICKET HAS BEEN CLOSED</p><hr />"
+            + $"<p>DETAILS</p>"
+            + $"<p>Ticket: {ticket.Id}</p>"
+            + $"<p>Assigned to: {ticket.Assignee}</p>"
+            + $"<p>Date: {DateTime.Now}</p>"
+            + $"<p>Subject: {ticket.Subject}</p>"
+            + $"<p>Ticket Closed: {additionalComments}</p></b>"
+            + $"<hr />";
+
+            await emailSender.MM_SendEmailAsync(recipients, $"YOUR TICKET: {ticket.Id} HAS BEEN CLOSED", mailBody);
+
+
+            //additionalComments = null;
+            navigationManager.NavigateTo("/");
+        }
+    }
+
+    protected async Task ReturnedDialogResult_PlaceTicketOnHold(bool result)
+    {
+        if (result)
+        {
+            // Place ticket on hold and add comment line with prefix "Placed on hold"
+            ticket.Id = int.Parse(ticketId);
+            ticket.StatusId = 4;
+            await ticketService.UpdateTicketAsync(ticket, $"Placed on hold: {additionalComments}");
+
+            // Send the user an email notifying that ticket has been placed on hold
+            List<string> recipients = new List<string>();
+            recipients.Add(ticket.EmailAddress);
+
+            // Check if other users are to receive notifications for this department.
+            var additionalNotifications = await criteriaService.GetAdditionalNotificationsByDeptAsync(ticket.Department);
+            if (additionalNotifications.Count() > 0)
+            {
+                foreach (var item in additionalNotifications)
+                {
+                    if (item.UserDetail.Email != ticket.EmailAddress) // do not add users email a second time
+                        recipients.Add(item.UserDetail.Email);
+                }
+            }
+
+            string mailBody = $"<b><p>Message from {StaticData._companyName}</p>"
+            + $"<p>YOUR TICKET HAS BEEN PLACED ON HOLD</p><hr />"
+            + $"<p>DETAILS</p>"
+            + $"<p>Ticket: {ticket.Id}</p>"
+            + $"<p>Assigned to: {ticket.Assignee}</p>"
+            + $"<p>Date: {DateTime.Now}</p>"
+            + $"<p>Subject: {ticket.Subject}</p>"
+            + $"<p>Placed on hold: {additionalComments}</p></b>"
+            + $"<hr />";
+
+            await emailSender.MM_SendEmailAsync(recipients, $"YOUR TICKET: {ticket.Id} HAS BEEN PLACED ON HOLD", mailBody);
+
+            //additionalComments = null;
+            navigationManager.NavigateTo("/");
+        }
+    }
+
+    private void ClaimTicket_Click()
+    {
+        claimTicketConfirmationDialog.ShowDialog_Confirmation();
+    }
+
+    protected async Task ReturnedDialogResult_ClaimTicket(bool result)
+    {
+        if (result)
+        {
+            ticket.Assignee = $"{loggedOnUserDetails.FirstName} {loggedOnUserDetails.LastName}";
+            ticket.StatusId = 2;
+
+            await ticketService.UpdateTicketAsync(ticket, $"Ticket Claimed by: {ticket.Assignee}");
+
+            // Send the user an email notifying that ticket has been claimed and by which support user
+            List<string> recipients = new List<string>();
+            recipients.Add(ticket.EmailAddress);
+
+            // Check if other users are to receive notifications for this department.
+            var additionalNotifications = await criteriaService.GetAdditionalNotificationsByDeptAsync(ticket.Department);
+            if (additionalNotifications.Count() > 0)
+            {
+                foreach (var item in additionalNotifications)
+                {
+                    if (item.UserDetail.Email != ticket.EmailAddress) // do not add users email a second time
+                        recipients.Add(item.UserDetail.Email);
+                }
+            }
+
+            string mailBody = $"<b><p>Message from {StaticData._companyName}</p>"
+            + $"<p>TICKET ASSIGNMENT HAS BEEN CHANGED</p><hr />"
+            + $"<p>DETAILS</p>"
+            + $"<p>Ticket: {ticket.Id}</p>"
+            + $"<p>Claimed By: {ticket.Assignee}</p>"
+            + $"<p>Date: {DateTime.Now}</p>"
+            + $"<p>Subject: {ticket.Subject}</p></b>"
+            + $"<hr />";
+
+            await emailSender.MM_SendEmailAsync(recipients, $"YOUR TICKET: {ticket.Id} HAS BEEN CLAIMED", mailBody);
+
+            navigationManager.NavigateTo($"/EditTicket/{ticket.Id}", true);
+        }
+    }
+
+    protected void ReturnedDialogResult_TicketUpdated()
+    {
+        navigationManager.NavigateTo($"/EditTicket/{ticket.Id}", true);
+    }
+}

@@ -1,0 +1,68 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <UserSecretsId>aspnet-Web_HelpDesk-4FE4542A-A1D5-4A7E-AD61-1096FFC867F8</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Data\Migrations\20200710141531_InitialCreate12.cs" />
+    <Compile Remove="Data\Migrations\20200710141531_InitialCreate12.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200710141727_InitialCreate13.cs" />
+    <Compile Remove="Data\Migrations\20200710141727_InitialCreate13.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200713143320_InitialCreate15.cs" />
+    <Compile Remove="Data\Migrations\20200713143320_InitialCreate15.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200713143430_InitialCreate16.cs" />
+    <Compile Remove="Data\Migrations\20200713143430_InitialCreate16.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200715064617_InitialCreate15.cs" />
+    <Compile Remove="Data\Migrations\20200715064617_InitialCreate15.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200715070524_InitialCreate14.cs" />
+    <Compile Remove="Data\Migrations\20200715070524_InitialCreate14.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200715070722_InitialCreate14.cs" />
+    <Compile Remove="Data\Migrations\20200715070722_InitialCreate14.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200715070805_InitialCreate15.cs" />
+    <Compile Remove="Data\Migrations\20200715070805_InitialCreate15.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200715072023_InitialCreate14.cs" />
+    <Compile Remove="Data\Migrations\20200715072023_InitialCreate14.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200730142504_InitialCreate13.cs" />
+    <Compile Remove="Data\Migrations\20200730142504_InitialCreate13.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200806055333_InitialCreate14.cs" />
+    <Compile Remove="Data\Migrations\20200806055333_InitialCreate14.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200806063009_InitialCreate15.cs" />
+    <Compile Remove="Data\Migrations\20200806063009_InitialCreate15.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200806094436_InitialCreate16.cs" />
+    <Compile Remove="Data\Migrations\20200806094436_InitialCreate16.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200806095355_InitialCreate16.cs" />
+    <Compile Remove="Data\Migrations\20200806095355_InitialCreate16.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200806101856_InitialCreate16.cs" />
+    <Compile Remove="Data\Migrations\20200806101856_InitialCreate16.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200806102100_InitialCreate17.cs" />
+    <Compile Remove="Data\Migrations\20200806102100_InitialCreate17.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200806102646_InitialCreate18.cs" />
+    <Compile Remove="Data\Migrations\20200806102646_InitialCreate18.Designer.cs" />
+    <Compile Remove="Data\Migrations\20200806112414_InitialCreate16.cs" />
+    <Compile Remove="Data\Migrations\20200806112414_InitialCreate16.Designer.cs" />
+    <Compile Remove="Data\Migrations\20201013074328_InitialCreate24.cs" />
+    <Compile Remove="Data\Migrations\20201013074328_InitialCreate24.Designer.cs" />
+    <Compile Remove="Data\Migrations\20201013075011_InitialCreate25.cs" />
+    <Compile Remove="Data\Migrations\20201013075011_InitialCreate25.Designer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\images\logo_placeholder.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DevExpress.Blazor" Version="20.1.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="3.1.5" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="3.1.6" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="3.1.6" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.1.6" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="3.1.6">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="3.1.4" />
+  </ItemGroup>
+
+</Project>

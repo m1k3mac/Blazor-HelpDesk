@@ -1,0 +1,198 @@
+﻿@page "/ViewTicket/{ticketId}"
+
+<AuthorizeView>
+    <Authorized>
+        @if (ticket == null)// || assignees == null)
+        {
+            <div class="loader"></div>
+        }
+        else
+        {
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-md-12">
+                        <!-- Ticket Main Detail Section -->
+                        <div class="table-responsive">
+                            <div class="table">
+                                <table class="table table-light table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Ticket</th>
+                                            <th>Logged</th>
+                                            <th>Creator</th>
+                                            <th>Subject</th>
+                                            <th>Priority</th>
+                                            <th>Status</th>
+                                            <th>Assigned to</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>@ticket.Id</td>
+                                            <td>@ticket.Logged</td>
+                                            <td>@ticket.Creator</td>
+                                            <td>@ticket.Subject</td>
+                                            <td>@ticket.Priority.PriorityLevel</td>
+                                            <td>@ticket.Status.TicketStatus</td>
+                                            <td>@ticket.Assignee</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="padding-top: 30px" class="col-md-3">
+                        <div class="card small">
+                            <div class="card-header"><h5>Additional Info</h5></div>
+                            <div class="card-body">
+                                <blockquote class="blockquote mb-0">
+                                    <h6>Location: @ticket.Location</h6>
+                                    <h6>Department: @ticket.Department</h6>
+                                    <h6>Category: @ticket.Category</h6>
+                                    <h6>Alt Contact: @ticket.AltContactNumber</h6>
+                                    <h6>Email: @ticket.EmailAddress</h6>
+                                </blockquote>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ticket Comments Section -->
+                    <div class="col-md-12">
+                        <div style="padding-top: 50px"><h3 class="text-dark font-weight-bold">History</h3></div>
+                        <table class="table table-active">
+                            <thead>
+                                <tr>
+                                    <th>Logged</th>
+                                    <th>Comment</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (ticketDetails != null)
+                                {
+                                    foreach (var comment in ticketDetails)
+                                    {
+                                        <tr>
+                                            <td>@comment.DateTime</td>
+                                            <td>@comment.Comments</td>
+                                        </tr>
+                                    }
+                                }
+
+                            </tbody>
+                        </table>
+
+                        <div class="form-group">
+                            @if (ticketDetails.Count() < 1)
+                            {
+                                <div><h6 style="padding-top:30px" font-style:italic">Add comment line</h6></div>
+                                <div class="form-group">
+                                    <textarea class="form-control" id="form43" rows="3" placeholder="comment..." disabled></textarea>
+                                </div>
+
+                                <button type="button" class="btn btn-primary" @onclick="Back_Click"><span class="mx-1 oi oi oi-arrow-circle-left" aria-hidden="true"></span>Back</button>
+                                <button type="button" class="btn btn-danger" disabled><span class="mx-1 oi oi oi-envelope-closed" aria-hidden="true"></span>Add Comment</button>
+                            }
+                            else
+                            {
+                                @if (ticketDetails.LastOrDefault().Comments.Contains("User Comment:"))
+                                {
+                                    <div><h6 style="padding-top:30px" font-style:italic">Add comment line</h6></div>
+                                    <div class="form-group">
+                                        <textarea class="form-control" id="form43" rows="3" placeholder="Waiting for support to respond to your last message..." disabled></textarea>
+                                    </div>
+
+                                    <button type="button" class="btn btn-primary" @onclick="Back_Click"><span class="mx-1 oi oi oi-arrow-circle-left" aria-hidden="true"></span>Back</button>
+                                    <button type="button" class="btn btn-danger" disabled><span class="mx-1 oi oi oi-envelope-closed" aria-hidden="true"></span>Add Comment</button>
+                                }
+                                else if (ticketDetails.LastOrDefault().Comments.Contains("Ticket Closed:"))
+                                {
+                                    <div><h6 style="padding-top:30px" font-style:italic">Add comment line</h6></div>
+                                    <div class="form-group">
+                                        <textarea class="form-control" id="form43" rows="3" placeholder="" disabled></textarea>
+                                    </div>
+
+                                    <button type="button" class="btn btn-primary" @onclick="Back_Click"><span class="mx-1 oi oi oi-arrow-circle-left" aria-hidden="true"></span>Back</button>
+                                    <button type="button" class="btn btn-danger" disabled><span class="mx-1 oi oi oi-envelope-closed" aria-hidden="true"></span>Add Comment</button>
+                                }
+                                else
+                                {
+                                    <div><h6 style="padding-top:30px" font-style:italic">Add comment line</h6></div>
+                                    <div class="form-group">
+                                        <textarea class="form-control" id="form43" rows="3" placeholder="comment..." @bind="@comments"></textarea>
+                                    </div>
+
+                                    <button type="button" class="btn btn-primary" @onclick="Back_Click"><span class="mx-1 oi oi oi-arrow-circle-left" aria-hidden="true"></span>Back</button>
+                                    <button type="button" class="btn btn-danger" @onclick="AddComment_Click"><span class="mx-1 oi oi oi-envelope-closed" aria-hidden="true"></span>Add Comment</button>
+                                }
+                            }
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <MMDialogs @ref="errorDialog"
+                   DialogTitle="@($"Missing Data")" DialogMessage=@($"You need to add a comment before proceeding")>
+        </MMDialogs>
+
+    </Authorized>
+</AuthorizeView>
+
+@code
+    {
+    [Parameter] public string ticketId { get; set; }
+    [Inject] private ITicketService ticketService { get; set; }
+    [Inject] private NavigationManager navigationManager { get; set; }
+    protected EmailSender emailSender { get; set; } = new EmailSender();
+    protected MMDialogs errorDialog { get; set; }
+
+    private Ticket ticket { get; set; }
+    private IEnumerable<TicketDetail> ticketDetails { get; set; }
+    private string comments;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ticket = await ticketService.GetTicketAsync(int.Parse(ticketId));
+        ticketDetails = await ticketService.GetTicketDetailsAsync(int.Parse(ticketId));
+    }
+
+    private void Back_Click()
+    {
+        navigationManager.NavigateTo("/");
+    }
+
+    private async Task AddComment_Click()
+    {
+        if(comments != null)
+        {
+            TicketDetail newDetail = new TicketDetail();
+            newDetail.TicketId = ticket.Id;
+            newDetail.Comments = $"User Comment: {comments}";
+            await ticketService.AddCommentAsync(newDetail);
+
+            // Send support team an email notifying that a user comment was added
+            string mailBody = $"<b><p>Message from {StaticData._companyName}</p>"
+            + $"<p>USER RESPONSE IS REQUIRED</p><hr />"
+            + $"<p>DETAILS</p>"
+            + $"<p>Ticket: {ticket.Id}</p>"
+            + $"<p>Assigned to: {ticket.Assignee}</p>"
+            + $"<p>Date: {DateTime.Now}</p>"
+            + $"<p>Subject: {ticket.Subject}</p>"
+            + $"<p>User comment: {comments}</p></b>"
+            + $"<hr />";
+
+            await emailSender.MM_SendEmailAsync(StaticData._adminEmailAddress, $"TICKET: {ticket.Id} HAS A USER COMMENT", mailBody);
+
+            navigationManager.NavigateTo($"/ViewTicket/{ticket.Id}", true);
+        }
+        else
+        {
+            errorDialog.ShowDialog_Message();
+        }
+    }
+
+}
+
+

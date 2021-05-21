@@ -1,0 +1,121 @@
+﻿@page "/UserList"
+@attribute [Authorize(Roles = "Administrators, Support")]
+
+<AuthorizeView>
+    <Authorized>
+        @if (matchedUserRoles == null)
+        {
+            <div class="loader"></div>
+        }
+        else
+        {
+            @*List the users from AspNetUsers and assign roles. If user needs to be assigned to a role then record the users name and create the user in Assignees table*@
+            <div class="container-fluid py-2">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h1>User Management</h1>
+                        <hr>
+                        <div class="table-responsive">
+                            <div class="table">
+                                <table class="table table-light table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>UserLogin</th>
+                                            <th>Full Name</th>
+                                            <th>Assigned to Role</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var user in matchedUserRoles)
+                                        {
+                                            <tr>
+                                                <td>@user.Email</td>
+                                                <td>@($"{user.FirstName} {user.LastName}")</td>
+                                                <td>@user.RoleName</td>
+                                                <td>@user.Status</td>
+
+                                                @if (user.RoleName == null)
+                                                {
+                                                    <td><button type="button" class="btn btn-primary" @onclick="(() => Assign_Click(user.Email))">Assign</button></td>
+                                                }
+                                                else
+                                                {
+                                                    <td><button type="button" class="btn btn-danger" @onclick="(() => Assign_Click(user.Email))">Change</button></td>
+                                                }
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code
+ {
+            [CascadingParameter] private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+            [Inject] private IUserDetailsService userDetailsService { get; set; }
+            [Inject] IUserRoleService userRoleService { get; set; }
+            [Inject] NavigationManager navigationManager { get; set; }
+
+     //[Inject] AuthenticationStateProvider AuthenticationStateProvider { get; set; }    
+
+        private AuthenticationState authenticationState;
+        private System.Security.Claims.ClaimsPrincipal currentUser;
+
+        private int assigneeId = 1, activeTabIndex;
+        private bool temp;
+
+        private IEnumerable<UserDetail> userDetailsList { get; set; }
+        private List<MatchedUserRoles> matchedUserRoles { get; set; } = new List<MatchedUserRoles>(); // Stores a list of ALL users, in and not in a role.
+
+        protected override async Task OnInitializedAsync()
+        {
+            authenticationState = await authenticationStateTask;
+            currentUser = (await authenticationStateTask).User;
+
+            // Get a list of users
+            userDetailsList = await userDetailsService.GetAllUserDetailsAsync();
+
+            foreach (var user in userDetailsList)
+            {
+                var userRole = await userRoleService.GetUserInRolesAsync(user.Email); // refer to projectnotes (USERROLES)
+
+                MatchedUserRoles temp = new MatchedUserRoles();
+                temp.Id = user.Id;
+                temp.Email = user.Email;
+                temp.FirstName = user.FirstName;
+                temp.LastName = user.LastName;
+
+                if(userRole.Count() > 0)
+                    temp.RoleName = userRole.First();
+
+                temp.Status = await userRoleService.GetUserStatusAsync(user.Email);
+                matchedUserRoles.Add(temp);
+            }
+        }
+
+        private void Assign_Click(string email)
+        {
+            // Write the GUID from the aspuser table into the assignee table
+            // Then assign the aspuser to the role using the methods above
+
+            navigationManager.NavigateTo($"/usermanager/{email}");
+        }
+
+        private void UsersList_Click()
+        {
+            activeTabIndex = 0;
+        }
+
+        private void Notifications_Click()
+        {
+            activeTabIndex = 1;
+        }
+}

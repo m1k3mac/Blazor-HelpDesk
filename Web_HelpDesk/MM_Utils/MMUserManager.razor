@@ -1,0 +1,135 @@
+﻿@page "/mmusermanager"
+
+<h3>Users</h3>
+
+<AuthorizeView>
+    <Authorized>
+
+        @if (@context.User.IsInRole("Administrator"))
+        {
+            <p>You are in "Administrators" </p>
+        }
+        else
+        {
+            <p>You're not signed in as a user in "Administrators".</p>
+        }
+
+    </Authorized>
+    <NotAuthorized>
+        <p>You're not loggged in.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code
+{
+    [CascadingParameter] private Task<AuthenticationState> authenticationStateTask { get; set; }
+    [Inject] UserManager<IdentityUser> _UserManager { get; set; }
+    [Inject] RoleManager<IdentityRole> _RoleManager { get; set; }
+    [Inject] AuthenticationStateProvider AuthenticationStateProvider { get; set; }
+
+    private AuthenticationState authenticationState;
+    private System.Security.Claims.ClaimsPrincipal currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        authenticationState = await authenticationStateTask;
+        currentUser = (await authenticationStateTask).User;
+
+        //await CreateNewRole("Support");
+        //await AddUserToRole("Support");
+    }
+
+    public bool IsUserAuthenticated()
+    {
+        // Check if user is authenticated: refer to notes [AUTHENTICATION and PAGES]
+
+        if (!currentUser.Identity.IsAuthenticated)
+            return false;
+        else
+            return true;
+    }
+
+    public bool IsUserInRole(string role)
+    {
+        //var result = await _UserManager.IsInRoleAsync(user, role);
+
+        if (currentUser.IsInRole(role))
+            return true;
+        else
+            return false;
+    }
+
+    public async Task<bool> DoesRoleExist(string role)
+    {
+        var roleResult = await _RoleManager.FindByNameAsync(role);
+        if (roleResult == null)
+            return false;
+        else
+            return true;
+    }
+
+    public async Task CreateNewRole(string role)
+    {
+        var result = await _RoleManager.CreateAsync(new IdentityRole(role));
+    }
+
+    public async Task AddUserToRole(string role)
+    {
+        var user = await _UserManager.FindByNameAsync(currentUser.Identity.Name);
+
+        await _UserManager.AddToRoleAsync(user, role);
+    }
+
+    public async Task<IdentityResult> CreateNewUser(string userName, string email, string password)
+    {
+        var user = new IdentityUser { UserName = userName, Email = email };
+        var result = await _UserManager.CreateAsync(user, password);
+
+        return result; // will return result.Succeeded if successful or Password not complex enough etc.
+    }
+
+    public IQueryable<IdentityUser> GetAllUsers()
+    {
+        return _UserManager.Users;
+    }
+
+
+
+
+    private async Task Others()
+    {
+        string ADMINISTRATION_ROLE = "Administrators";
+
+        // Get the current logged in user
+        var CurrentUser = (await authenticationStateTask).User;
+
+        // ensure there is a ADMINISTRATION_ROLE
+        var RoleResult = await _RoleManager.FindByNameAsync(ADMINISTRATION_ROLE);
+
+        if (RoleResult == null)
+        {
+
+            // Create ADMINISTRATION_ROLE Role
+            await _RoleManager.CreateAsync(new IdentityRole(ADMINISTRATION_ROLE));
+        }
+
+        // Ensure a user is an Administrator
+        var user = await _UserManager.FindByNameAsync(CurrentUser.Identity.Name);
+
+        if (user != null)
+        {
+
+            // Is Admin@BlazorHelpWebsite.com in administrator role?
+            var UserResult = await _UserManager.IsInRoleAsync(user, ADMINISTRATION_ROLE);
+
+            if (!UserResult)
+            {
+
+                // Put admin in Administrator role
+                await _UserManager.AddToRoleAsync(user, ADMINISTRATION_ROLE);
+            }
+        }
+    }
+
+}

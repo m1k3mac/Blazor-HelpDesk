@@ -1,0 +1,276 @@
+﻿@page "/usermanager/{email}"
+@attribute [Authorize(Roles = "Administrators, Support")]
+
+<AuthorizeView>
+    <Authorized>
+        @if (rolesList == null)
+        {
+            <div class="loader"></div>
+        }
+        else
+        {
+            <div class="py-3" style="">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-8 p-4">
+                            <h1>User Management</h1>
+                            <hr />
+                            <h3>User: @email</h3>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 p-4" style="">
+                            <form>
+                                <div class="form-row">
+                                    <div class="form-group col-md-6"> <input type="text" class="form-control" id="form36" placeholder="FirstName" @bind="@userDetails.FirstName"> </div>
+                                    <div class="form-group col-md-6"> <input type="text" class="form-control" id="form37" placeholder="Last Name" @bind="@userDetails.LastName"> </div>
+                                </div>
+
+                                <h6 class="mt-3">Member belongs to role:</h6>
+
+                                <select class="form-control my-2" id="priority" style="height:auto" @bind="@roleName">
+                                    // * refer to notes (SELECTCOMPONENT)
+                                    @foreach (var item in rolesList)
+                                    {
+                                        <option value="@item.Name"> @item.Name</option>
+                                        //Note item.name is the value (which is bound) and RoleName name is shown in the control
+                                    }
+                                </select>
+
+                                <h6 class="mt-5">Optional: Notify user when tickets are logged for department. Can select up to two departments:</h6>
+
+                                <select class="form-control my-2" id="priority" style="height:auto" @bind="@additionalDeptNotification1">
+                                    // * refer to notes (SELECTCOMPONENT)
+                                    @foreach (var item in departments)
+                                    {
+                                        <option value="@item.DepartmentName"> @item.DepartmentName</option>
+                                        //Note item.name is the value (which is bound) and RoleName name is shown in the control
+                                    }
+                                </select>
+
+                                <select class="form-control my-2" id="priority" style="height:auto" @bind="@additionalDeptNotification2">
+                                    // * refer to notes (SELECTCOMPONENT)
+                                    @foreach (var item in departments)
+                                    {
+                                        <option value="@item.DepartmentName"> @item.DepartmentName</option>
+                                        //Note item.name is the value (which is bound) and RoleName name is shown in the control
+                                    }
+                                </select>
+
+                                <div class="form-group py-3">
+                                    <button type="button" class="btn btn-primary" @onclick="Submit_Click">Submit</button>
+                                    @if (userIsDisabled)
+                                    {
+                                        <button type="button" class="btn btn-danger" @onclick="ChangeUserStatus_Click">Enable User</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-danger" @onclick="ChangeUserStatus_Click">Disable User</button>
+                                    }
+                                    <button type="button" class="btn btn-danger" @onclick="Clear_Click">Clear Notifications</button>
+                                </div>
+                            </form>
+                    </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+    </Authorized>
+</AuthorizeView>
+
+@** refer to notes (EVENTCALLBACK) for the below*@
+<MMDialogs ConfirmationCallback="ReturnedResultDialogSubmit" @ref="changePermConfirmationDialog" DialogTitle="User Details Change"
+           DialogMessage="Confirm changes?"></MMDialogs>
+
+<MMDialogs ConfirmationCallback="ReturnedResultDialogChangeStatus" @ref="changeStatusConfirmationDialog" DialogTitle="Confirm User Status Change"
+           DialogMessage="Sure you want to change this user status?"></MMDialogs>
+
+<MMDialogs @ref="errorDialog" DialogTitle="Missing Data" DialogMessage="You need to fill the required details before proceeding">
+</MMDialogs>
+
+<MMDialogs ConfirmationCallback="ReturnedResultDialogClear" @ref="clearConfirmationDialog" DialogTitle="Clear notifications for this user"
+           DialogMessage="Confirm clear?"></MMDialogs>
+
+
+@code
+{
+    [Parameter]
+    public string email { get; set; }
+
+    [Inject] private IUserDetailsService userDetailsService { get; set; }
+    [Inject] private IUserRoleService userRoleService { get; set; }
+    [Inject] private NavigationManager navigationManager { get; set; }
+    [Inject] private IAdditionalCriteria additionalCriteria { get; set; }
+
+    protected MMDialogs changePermConfirmationDialog { get; set; }
+    protected MMDialogs changeStatusConfirmationDialog { get; set; }
+    protected MMDialogs errorDialog { get; set; }
+    protected MMDialogs clearConfirmationDialog { get; set; }
+    protected EmailSender emailSender { get; set; } = new EmailSender();
+    private IEnumerable<IdentityRole> rolesList;
+    private IEnumerable<string> userRoles { get; set; }
+    private IEnumerable<Department> departments { get; set; }
+    private IEnumerable<AdditionalNotification> additionalNotifications { get; set; }
+
+    private UserDetail userDetails { get; set; }
+    private string roleName, additionalDeptNotification1, additionalDeptNotification2;
+    private bool userIsDisabled;
+
+    protected override async Task OnInitializedAsync()
+    {
+        userDetails = await userDetailsService.GetUserDetailsAsync(email);
+
+        var userStatus = await userRoleService.GetUserStatusAsync(email);
+        if (userStatus == "Disabled")
+            userIsDisabled = true;
+
+        // Get a list of all roles
+        rolesList = await userRoleService.GetRolesAsync();
+
+        // Get the role name the user is a member of
+        userRoles = await userRoleService.GetUserInRolesAsync(email); // refer to projectnotes (USERROLES)
+        roleName = userRoles.First();
+
+        //Get a list of Departments
+        departments = await additionalCriteria.GetDepartmentsAsync();
+
+        //Get list of additional notifications for this user
+        additionalNotifications = await additionalCriteria.GetAdditionalNotificationsByUserAsync(email);
+
+        if(additionalNotifications.Count() > 0)
+        {
+            List<string> department = new List<string>();
+            foreach(var item in additionalNotifications)
+            {
+                department.Add(item.Department.DepartmentName);
+            }
+            additionalDeptNotification1 = department[0];
+            if(department.Count > 1)
+            {
+                additionalDeptNotification2 = department[1];
+            }
+            else
+            {
+                additionalDeptNotification2 = "";
+            }
+        }
+        else
+        {
+            additionalDeptNotification1 = "";
+            additionalDeptNotification2 = "";
+        }
+    }
+
+    private void Submit_Click()
+    {
+        if (userDetails.FirstName != "" && userDetails.LastName != "")
+        {
+            changePermConfirmationDialog.ShowDialog_Confirmation();
+        }
+        else
+        {
+            errorDialog.ShowDialog_Message();
+        }
+    }
+
+    private void ChangeUserStatus_Click()
+    {
+        changeStatusConfirmationDialog.ShowDialog_Confirmation();
+    }
+
+    private async Task ReturnedResultDialogSubmit(bool result)
+    {
+        if (result)
+        {
+            await userDetailsService.UpdateUserDetailsAsync(email, userDetails.FirstName, userDetails.LastName);
+
+            // Remove user from any roles that its a member of. If not done then every change will add the user to the new role resulting in the user belonging to more than one role
+            await userRoleService.RemoveUserFromRolesAsync(email, userRoles);
+
+            await userRoleService.AddUserToRoleAsync(email, roleName);
+
+
+            if(additionalDeptNotification1 == "" && additionalDeptNotification2 == "")
+            {
+                // do Nothing
+            }
+            else
+            {
+                var notificationsResult = await additionalCriteria.GetAdditionalNotificationsByUserAsync(email);
+
+                // Remove all notifications
+                if (notificationsResult.Count() > 0)
+                    await additionalCriteria.RemoveAdditionalNotificationsAsync(notificationsResult);
+
+                if(additionalDeptNotification1 != "")
+                {
+                    AdditionalNotification notification = new AdditionalNotification();
+                    var deptId = departments.Where(l => l.DepartmentName == additionalDeptNotification1).FirstOrDefault();
+                    notification.UserDetailId = userDetails.Id;
+                    notification.DepartmentId = deptId.Id;
+                    await additionalCriteria.AddAdditionalUserNotificationsAsync(notification);
+                }
+
+                if(additionalDeptNotification2 != "")
+                {
+                    AdditionalNotification notification = new AdditionalNotification();
+                    var deptId = departments.Where(l => l.DepartmentName == additionalDeptNotification2).FirstOrDefault();
+                    notification.UserDetailId = userDetails.Id;
+                    notification.DepartmentId = deptId.Id;
+                    await additionalCriteria.AddAdditionalUserNotificationsAsync(notification);
+                }
+            }
+
+            navigationManager.NavigateTo("/UserList");
+        }
+    }
+
+    private async Task ReturnedResultDialogChangeStatus(bool result)
+    {
+        if(result)
+        {
+            if(userIsDisabled)
+            {
+                await userRoleService.EnableUserAsync(email);
+
+                // Send the user an email notifying that their account has been enabled
+                string mailBody = $"<b><p>Message from {StaticData._companyName}</p>"
+                + $"<p>Your user account has been activated</p><hr />"
+                + $"<p>DETAILS</p>"
+                + $"<p>User login: {email}</p>"
+                + $"<p>Date: {DateTime.Now}</p>"
+                + $"<p>You may proceed to login to http://10.1.1.5:8080</p></b>"
+                + $"<hr />";
+
+                await emailSender.MM_SendEmailAsync(email, $"New user account created", mailBody);
+
+                navigationManager.NavigateTo("/UserList");
+            }
+            else
+            {
+                await userRoleService.DisableUserAsync(email);
+                navigationManager.NavigateTo("/UserList");
+            }
+        }
+    }
+
+    private async Task ReturnedResultDialogClear(bool Result)
+    {
+        if(Result)
+        {
+            var notificationsResult = await additionalCriteria.GetAdditionalNotificationsByUserAsync(email);
+
+            // Remove all notifications
+            if (notificationsResult.Count() > 0)
+                await additionalCriteria.RemoveAdditionalNotificationsAsync(notificationsResult);
+
+            navigationManager.NavigateTo("/UserList");
+        }
+    }
+
+    private void Clear_Click()
+    {
+        clearConfirmationDialog.ShowDialog_Confirmation();
+    }
+}

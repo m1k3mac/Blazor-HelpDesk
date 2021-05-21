@@ -1,0 +1,187 @@
+﻿@page "/newticket"
+
+<AuthorizeView>
+    <Authorized>
+        @if (priorities == null || departmentsList == null || problemTypeList == null)
+        {
+            <div class="loader"></div>
+        }
+        else
+        {
+            <div class="py-3" style="">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-8 p-4">
+                            <h1>Create New Ticket</h1>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 p-4" style="">
+                            <form>
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        @*<label for="department">Select your Department</label>*@
+                                        <select class="form-control" id="department" style="height:auto" @bind="@department">
+                                            @foreach (var dept in departmentsList)
+                                            {
+                                                <option value="@dept.DepartmentName"> @dept.DepartmentName</option>
+                                            }
+                                        </select>
+                                    </div>                                    
+
+                                    <div class="form-group col-md-6">
+                                        @*<label for="location">Select your Location</label>*@
+                                        <select class="form-control" id="location" style="height:auto" @bind="@location">
+                                            <option value="@location">Durban</option>
+                                            <option value="Durban">Johannesburg</option>
+                                            <option value="Plaslope">Capetown</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        @*<label for="department">Select your Problem Type</label>*@
+                                        <select class="form-control" id="problemtype" style="height:auto" @bind="@category">
+                                            @foreach (var cat in problemTypeList)
+                                            {
+                                                <option value="@cat.ProblemType"> @cat.ProblemType</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-group"><textarea class="form-control" id="thesubject" rows="4" placeholder="Subject" @bind="@subject"></textarea></div>
+                                <div class="form-row">
+                                    <div class="form-group col-md-6"><input type="text" class="form-control" id="form97" placeholder="Alternate Contact Number (optional)" @bind="@altContactNumber"></div>
+                                </div>
+
+                                <label for="priority">Priority level</label>
+                                <select class="form-control" id="priority" style="height:auto" @bind="@priorityId">
+                                    // * refer to notes (SELECTCOMPONENT)
+                                    @foreach (var item in priorities)
+                                    {
+                                        <option value="@item.Id"> @item.PriorityLevel</option>
+                                        //Note Item Id is the value (which is bound) and prioritylevel name is shown in the control
+                                    }
+                                </select>
+
+                                <div class="form-group"> </div> <button type="button" class="btn btn-primary" @onclick="Submit">Submit</button>
+                            </form>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            @** refer to notes (EVENTCALLBACK) for the below*@
+            <MMDialogs ConfirmationCallback="ReturnedDialogResult" @ref="SuccessDialog" DialogTitle="Ticket Confirmation"
+                       DialogMessage=@($"Your ticket has been submitted and support team have been notified")></MMDialogs>
+
+            <MMDialogs @ref="ErrorDialog" DialogTitle="Create Ticket Error"
+                       DialogMessage=@($"Please make sure all the fields are filled in")></MMDialogs>
+        }
+    </Authorized>
+</AuthorizeView>
+   
+
+@code
+{
+    [CascadingParameter] public Task<AuthenticationState> authenticationStateTask { get; set; } // refer to notes [AUTHENTICATION and PAGES]
+    [Inject] private ITicketService ticketService { get; set; }
+    [Inject] private IPriorityService priorityService { get; set; }
+    [Inject] private IUserRoleService userRoleService { get; set; }
+    [Inject] private IUserDetailsService userDetailsService { get; set; }
+    [Inject] private IAdditionalCriteria criteriaService { get; set; }
+    [Inject] private NavigationManager navigationManager { get; set; }
+
+    protected MMDialogs SuccessDialog { get; set; }
+    protected MMDialogs ErrorDialog { get; set; }
+    protected EmailSender emailSender { get; set; } = new EmailSender();
+    private IEnumerable<Priority> priorities { get; set; }
+    private IEnumerable<Department> departmentsList { get; set; }
+    private IEnumerable<Category> problemTypeList { get; set; }
+    private UserDetail userDetails { get; set; }
+
+    // Setting department and location below default values makes sure that the dropdown list will who a value without having to click, instead of blank
+    private string department = "Accounts", location = "Durban", category = "Computer Hardware Problem", altContactNumber, subject;
+    private int priorityId = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Get details of the logged on user
+        var authenticationState = await authenticationStateTask;
+        var currentUser = (await authenticationStateTask).User;
+        userDetails = await userDetailsService.GetUserDetailsAsync(currentUser.Identity.Name);
+
+        priorities = await priorityService.GetPrioritiesAsync();
+        departmentsList = await criteriaService.GetDepartmentsAsync();
+        problemTypeList = await criteriaService.GetCategoriesAsync();
+
+    }
+
+    private async Task Submit()
+    {
+        // Proper way to do form validation is using: <DataAnnotationsValidator /> and <ValidationSummary />
+        //if (ticket.EmailAddress != null)
+        //{
+        //    if (!ticket.EmailAddress.Contains('@'))
+        //        ticket.EmailAddress = null;
+        //}
+
+        if (department == null || location == null || subject == null)
+        {
+            ErrorDialog.ShowDialog_Message();
+        }
+        else
+        {
+            Ticket ticket = new Ticket();
+            ticket.Creator = $"{userDetails.FirstName} {userDetails.LastName}";
+            ticket.StatusId = 1;
+            ticket.PriorityId = priorityId;
+            ticket.Subject = subject;
+            ticket.EmailAddress = userDetails.Email;
+            ticket.Department = department;
+            ticket.Category = category;
+            ticket.Location = location;
+            ticket.AltContactNumber = altContactNumber;
+
+            await ticketService.NewTicketAsync(ticket);
+
+            // Send the user an email confirmation message and cc helpdeskadmin@helpdesk.com
+            List<string> recipients = new List<string>();
+            recipients.Add(userDetails.Email);
+
+            // Check if other users are to receive notifications for this department.
+            var additionalNotifications = await criteriaService.GetAdditionalNotificationsByDeptAsync(ticket.Department);
+            if (additionalNotifications.Count() > 0)
+            {
+                foreach(var item in additionalNotifications)
+                {
+                    if (item.UserDetail.Email != userDetails.Email) // do not add users email a second time
+                        recipients.Add(item.UserDetail.Email);
+                }
+            }
+
+            recipients.Add(StaticData._adminEmailAddress);
+            string mailBody = $"<b><p>Message from {StaticData._companyName}</p>"
+            + $"<p>A NEW TICKET HAS BEEN CREATED</p><hr />"
+            + $"<p>DETAILS</p>"
+            + $"<p>Ticket: {ticket.Id}</p>"
+            + $"<p>Date: {DateTime.Now}</p>"
+            + $"<p>Subject: {ticket.Subject}</p></b>"
+            + $"<hr />";
+
+            await emailSender.MM_SendEmailAsync(recipients, $"{userDetails.FirstName} {userDetails.LastName} LOGGED A NEW TICKET: {ticket.Id}", mailBody);
+
+            SuccessDialog.ShowDialog_Message();
+        }
+    }
+
+    private void ReturnedDialogResult()
+    {
+        navigationManager.NavigateTo("/");
+    }
+}

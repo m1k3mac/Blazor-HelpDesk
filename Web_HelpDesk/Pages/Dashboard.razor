@@ -1,0 +1,404 @@
+﻿@page "/Dashboard"
+@attribute [Authorize(Roles = "Administrators, Support, Executives")]
+
+<div class="d-flex justify-content-center">
+    <h3><b>@($"Statistics for {fullMonthName} {DateTime.Now.Year}")</b></h3>
+    <div class="col-md-2">
+        @*<DxDateEdit @bind-Date="@startDate" PickerDisplayMode="DatePickerDisplayMode.Calendar" ScrollPickerFormat="dddd MMMM yyyy"></DxDateEdit>*@
+        <button type="button" class="btn btn-primary" @onclick="PreviousMonth_Click">Previous Month</button>
+    </div>
+</div>
+<hr />
+<p></p>
+
+@if (ticketStats == null || ticketStats.Count() < 1)
+{
+    <div class="loader"></div>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <DxChart Data="@ticketStats"
+                     CssClass="mw-1100">
+                <DxChartTitle Text="Tickets by Status" />
+                <DxChartLegend AllowToggleSeries="false" VerticalAlignment="@VerticalEdge.Bottom" Position="@RelativePosition.Outside" />
+                <DxChartDonutSeries ValueField="@((Dashboard_Tickets i) => i.Count)" ArgumentField="@(i => i.Stats)" AggregationMethod="@Enumerable.Sum">
+                    <DxChartSeriesLabel Visible="true" />
+                </DxChartDonutSeries>
+            </DxChart>
+        </div>
+
+        <div class="col-md-4">
+            <DxChart Data="@departmentStats"
+                     CssClass="mw-1100">
+                <DxChartTitle Text="Tickets by Department" />
+                <DxChartLegend AllowToggleSeries="false" VerticalAlignment="@VerticalEdge.Bottom" Position="@RelativePosition.Outside" />
+                <DxChartDonutSeries ValueField="@((Dashboard_Tickets i) => i.Count)" ArgumentField="@(i => i.Stats)" AggregationMethod="@Enumerable.Sum">
+                    <DxChartSeriesLabel Visible="true" />
+                </DxChartDonutSeries>
+            </DxChart>
+        </div>
+
+        <div class="col-md-4">
+            <DxChart Data="@categoryStats"
+                     CssClass="mw-1100">
+                <DxChartTitle Text="Tickets by Category" />
+                <DxChartLegend AllowToggleSeries="false" VerticalAlignment="@VerticalEdge.Bottom" Position="@RelativePosition.Outside" />
+                <DxChartDonutSeries ValueField="@((Dashboard_Tickets i) => i.Count)" ArgumentField="@(i => i.Stats)" AggregationMethod="@Enumerable.Sum">
+                    <DxChartSeriesLabel Visible="true" />
+                </DxChartDonutSeries>
+            </DxChart>
+        </div>
+    </div>
+
+    <div class="row">
+        <div style="padding-top: 20px" class="col-md-4">
+            <div class="card small">
+                <div class="card-header text-primary"><h5>Response Times</h5></div>
+                <div class="card-body text-primary">
+                    <blockquote class="blockquote mb-0">
+                        @foreach (var item in dashboard_Response)
+                        {
+                            var mainSplit = item.Time.Split(':');
+                            var daysHours = mainSplit[0].Split('.');
+                            <h6>@($"{item.Stat}: {daysHours[0]} Days {daysHours[1]} Hours {mainSplit[1]} Minutes")</h6>
+                        }
+                    </blockquote>
+                </div>
+            </div>
+        </div>
+        <div style="padding-top: 20px" class="col-md-4">
+            <div class="card small">
+                <div class="card-header text-primary"><h5>Volumes and Averages</h5></div>
+                <div class="card-body text-primary">
+                    <blockquote class="blockquote mb-0">
+                        @foreach (var item in dailyAverage)
+                        {
+                            <h5>@($"{item.Stats}: {item.Count}")</h5>
+                        }
+                    <p><h6>Ticket counts - previous seven days:</h6></p>
+                        @foreach (var item in previousDays)
+                        {
+                            <h6>@($"{item.Stats}: {item.Count}")</h6>
+                        }
+                    </blockquote>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <DxChart Data="@locationStats"
+                     CssClass="mw-1100">
+                <DxChartTitle Text="Tickets by Location" />
+                <DxChartLegend AllowToggleSeries="false" VerticalAlignment="@VerticalEdge.Bottom" Position="@RelativePosition.Outside" />
+                <DxChartDonutSeries ValueField="@((Dashboard_Tickets i) => i.Count)" ArgumentField="@(i => i.Stats)" AggregationMethod="@Enumerable.Sum">
+                    <DxChartSeriesLabel Visible="true" />
+                </DxChartDonutSeries>
+            </DxChart>
+        </div>        
+    </div>
+}
+
+@code
+{
+    [Inject] private ITicketService ticketService { get; set; }
+
+    private IEnumerable<Ticket> allTickets { get; set; }
+    private List<Ticket> topTicketsByDepartment;
+    private UserDetail loggedOnUserDetails { get; set; }
+    private List<Dashboard_Tickets> ticketStats;
+    private List<Dashboard_Tickets> departmentStats;
+    private List<Dashboard_Tickets> categoryStats;
+    private List<Dashboard_Tickets> locationStats;
+    private List<Dashboard_Tickets> dailyAverage;
+    private List<Dashboard_Tickets> previousDays;
+    private List<Dashboard_Response> dashboard_Response;
+
+    string fullMonthName = null;
+    DateTime startDate;
+    DateTime endDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        fullMonthName = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).ToString("MMMM");
+
+        // Get the current months start and end dates
+        startDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+        endDate = startDate.AddMonths(1).AddDays(-1);
+
+        await GetTicketStats();
+        await GetResponseTimes();
+        await GetTopFiveStats();
+
+        //StateHasChanged(); -- evaluate the count() of the lists that the charts are bound to instead in the razor section.
+    }
+
+    private async Task PreviousMonth_Click()
+    {
+        // To display previous months results
+        startDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month - 1, 1); // for previous month
+        fullMonthName = new DateTime(DateTime.Now.Year, DateTime.Now.Month -1, 1).ToString("MMMM");
+        endDate = startDate.AddMonths(1).AddDays(-1);
+        
+        await GetTicketStats();
+        await GetResponseTimes();
+        await GetTopFiveStats();
+    }   
+
+    private async Task GetTicketStats()
+    {
+        // Dont need to get identity and roles as only people in admin,support and exec (set below the page directive at the top) can see this data,
+        // I pass in "Administrators" manually into the userInRoles parameter so the method returns all tickets and not ticket based on logged on user name.
+        // Also no need to pass in email address into method as its not returning tickets for a specific user.
+
+        ticketStats = new List<Dashboard_Tickets>();
+
+        List<string> userInRoles = new List<string>();
+        userInRoles.Add("Administrators");
+        allTickets = await ticketService.GetTicketsAsync("anything", userInRoles.ToList(), TicketStates.All, startDate, endDate);
+
+        // Get ticket stats -----------------------------------------------------------------------------------
+
+        var ticketsByStatusGroups = allTickets.GroupBy(s => s.Status.TicketStatus);
+        foreach(var group in ticketsByStatusGroups)
+        {
+            Dashboard_Tickets temp = new Dashboard_Tickets();
+            temp.Stats = group.Key;
+            temp.Count = group.Count();
+            ticketStats.Add(temp);
+        }
+
+        #region OldManualMethod
+        //var newTickets = allTickets.Where(l => l.Status.TicketStatus == "New");
+        //var openTickets = allTickets.Where(l => l.Status.TicketStatus == "Open");
+        //var onHoldTickets = allTickets.Where(l => l.Status.TicketStatus == "On Hold");
+        //var closedTickets = allTickets.Where(l => l.Status.TicketStatus == "Closed");
+
+        //Dashboard_Tickets newTemp = new Dashboard_Tickets();
+        //newTemp.Stats = "New";
+        //newTemp.Count = newTickets.Count();
+        //ticketStats.Add(newTemp);
+        //Dashboard_Tickets openTemp = new Dashboard_Tickets();
+        //openTemp.Stats = "Open";
+        //openTemp.Count = openTickets.Count();
+        //ticketStats.Add(openTemp);
+        //Dashboard_Tickets holdTemp = new Dashboard_Tickets();
+        //holdTemp.Stats = "OnHold";
+        //holdTemp.Count = onHoldTickets.Count();
+        //ticketStats.Add(holdTemp);
+        //Dashboard_Tickets closedTemp = new Dashboard_Tickets();
+        //closedTemp.Stats = "Closed";
+        //closedTemp.Count = closedTickets.Count();
+        //ticketStats.Add(closedTemp); 
+        #endregion
+        #region Alternate
+        // This code block works same as above but will not show items with 0 counts.
+        //// Add all ticket statuses from the list of alltickets to listOfDepartments. Add status then get total count of tickets for that status and add to ticketStats.
+        //List<string> listOfStatuses = new List<string>();
+        //foreach (var item in allTickets)
+        //{
+        //    if (!listOfStatuses.Contains(item.Status.TicketStatus))
+        //    {
+        //        listOfStatuses.Add(item.Status.TicketStatus);
+        //        var ticketStatus = allTickets.Where(l => l.Status.TicketStatus == item.Status.TicketStatus).ToList();
+
+        //        Dashboard_Tickets temp = new Dashboard_Tickets();
+        //        temp.Status = item.Status.TicketStatus;
+        //        temp.Count = ticketStatus.Count();
+        //        ticketStats.Add(temp);
+        //    }
+        //}
+        #endregion
+
+        // Group and add Department stats
+
+        departmentStats = new List<Dashboard_Tickets>();
+
+        var ticketsByDepartmentGroups = allTickets.GroupBy(d => d.Department);
+        foreach(var group in ticketsByDepartmentGroups)
+        {
+            Dashboard_Tickets temp = new Dashboard_Tickets();
+            temp.Stats = group.Key;
+            temp.Count = group.Count();
+            departmentStats.Add(temp);
+        }
+
+        #region OldMethod
+        //List<string> listOfDepartments = new List<string>();
+        //foreach (var item in allTickets)
+        //{
+        //    if (!listOfDepartments.Contains(item.Department) && item.Department != null)
+        //    {
+        //        listOfDepartments.Add(item.Department);
+        //        var departmentTickets = allTickets.Where(l => l.Department == item.Department).ToList();
+
+        //        Dashboard_Tickets temp = new Dashboard_Tickets();
+        //        temp.Stats = item.Department;
+        //        temp.Count = departmentTickets.Count();
+        //        departmentStats.Add(temp);
+        //    }
+        //} 
+        #endregion
+
+        // Group and add Category stats
+        categoryStats = new List<Dashboard_Tickets>();
+
+        var ticketsByCategoryGroups = allTickets.GroupBy(c => c.Category);
+        foreach(var group in ticketsByCategoryGroups)
+        {
+            Dashboard_Tickets temp = new Dashboard_Tickets();
+            temp.Stats = group.Key;
+            temp.Count = group.Count();
+            categoryStats.Add(temp);
+        }
+
+        #region OldMethod
+        //List<string> listOfCategories = new List<string>();
+        //foreach (var item in allTickets)
+        //{
+        //    if (!listOfCategories.Contains(item.Category) && item.Category != null)
+        //    {
+        //        listOfCategories.Add(item.Category);
+        //        var categories = allTickets.Where(l => l.Category == item.Category).ToList();
+
+        //        Dashboard_Tickets temp = new Dashboard_Tickets();
+        //        temp.Stats = item.Category;
+        //        temp.Count = categories.Count();
+        //        categoryStats.Add(temp);
+        //    }
+        //} 
+        #endregion
+
+        // Group and add Location stats
+        locationStats = new List<Dashboard_Tickets>();
+
+        var ticketsByLocationGroups = allTickets.GroupBy(l => l.Location);
+        foreach (var group in ticketsByLocationGroups)
+        {
+            Dashboard_Tickets temp = new Dashboard_Tickets();
+            temp.Stats = group.Key;
+            temp.Count = group.Count();
+            locationStats.Add(temp);
+        }
+
+        #region OldMethod
+        //List<string> listOfLocations = new List<string>();
+        //foreach (var item in allTickets)
+        //{
+        //    if (!listOfLocations.Contains(item.Location) && item.Location != null)
+        //    {
+        //        listOfLocations.Add(item.Location);
+        //        var locations = allTickets.Where(l => l.Location == item.Location).ToList();
+
+        //        Dashboard_Tickets temp = new Dashboard_Tickets();
+        //        temp.Stats = item.Location;
+        //        temp.Count = locations.Count();
+        //        locationStats.Add(temp);
+        //    }
+        //} 
+        #endregion
+
+        // Average daily tickets
+        dailyAverage = new List<Dashboard_Tickets>();
+
+        var ticketsPerDay = allTickets.GroupBy(l => l.Logged.Day);
+        List<int> perDayNumbers = new List<int>();
+        foreach(var group in ticketsPerDay)
+        {
+            perDayNumbers.Add(group.Count());
+        }
+
+        Dashboard_Tickets dailyAverageTemp = new Dashboard_Tickets();
+        dailyAverageTemp.Stats = "Daily Average";
+        dailyAverageTemp.Count = Convert.ToInt16(Math.Ceiling(perDayNumbers.Average()));
+        dailyAverage.Add(dailyAverageTemp);
+
+        // Daily tickets for the last x days.   
+        previousDays = new List<Dashboard_Tickets>();
+        var twoMonthTickets = await ticketService.GetTicketsAsync("anything", userInRoles.ToList(), TicketStates.All, startDate.AddMonths(-1), endDate);
+        for (int i = 1; i < 8; i++)
+        {
+            DateTime previousDate = DateTime.Now.AddDays(-i);
+
+            Dashboard_Tickets temp = new Dashboard_Tickets();
+            temp.Stats = previousDate.ToString("dddd");
+            temp.Count = twoMonthTickets.Where(m => m.Logged.Month == previousDate.Month && m.Logged.Day == previousDate.Day).Count();
+            previousDays.Add(temp);
+        }
+        twoMonthTickets = null;
+    }
+
+    private async Task GetTopFiveStats()
+    {
+        topTicketsByDepartment = new List<Ticket>();
+        var topFiveDepartments = departmentStats.OrderByDescending(l => l.Count).Take(5);
+
+        foreach (var item in topFiveDepartments)
+        {
+            var topTickets = allTickets.Where(t => t.Department == item.Stats).OrderByDescending(i => i.Id);
+            foreach (var ticket in topTickets)
+            {
+                Ticket temp = new Ticket();
+                temp.Id = ticket.Id;
+                temp.Logged = ticket.Logged;
+                temp.Subject = ticket.Subject;
+                temp.Location = ticket.Location;
+                temp.Category = ticket.Category;
+
+                topTicketsByDepartment.Add(temp);
+            }
+        }
+
+        await Task.Delay(500);
+    }
+
+    private async Task GetResponseTimes()
+    {
+        // Get a list of ticket response times. Average them out and add to list
+        var responseTimes = await ticketService.GetTicketResponseTimesAsync(startDate, endDate);
+
+        dashboard_Response = new List<Dashboard_Response>();
+
+        List<TimeSpan> responseTimesList = new List<TimeSpan>();
+        List<TimeSpan> completedTimesList = new List<TimeSpan>();
+
+        DateTime defaultOrNull = new DateTime(0001, 01, 01); // If ticket has no Claimed or Closed date it comes back as 0001/01/01. This is used to evaulate if 'null'
+        foreach (var item in responseTimes.Where(i => i.Claimed.Date != defaultOrNull))
+        {
+            responseTimesList.Add((item.Claimed - item.Logged));//.ToString(@"dd\.hh\:mm\:ss"));
+        }
+
+        foreach (var item in responseTimes.Where(i => i.Closed.Date != defaultOrNull))
+        {
+            completedTimesList.Add((item.Closed - item.Claimed));//.ToString(@"dd\.hh\:mm\:ss"));
+        }
+
+        Dashboard_Response avgResponseTemp = new Dashboard_Response();
+        avgResponseTemp.Stat = "Average Response";
+        double averageResponse = responseTimesList.Select(ts => ts.TotalSeconds).Average();
+        TimeSpan averageResponseToTimeSpan = TimeSpan.FromSeconds(averageResponse);
+        avgResponseTemp.Time = averageResponseToTimeSpan.ToString(@"dd\.hh\:mm\:ss");
+        dashboard_Response.Add(avgResponseTemp);
+
+        Dashboard_Response maxResponseTemp = new Dashboard_Response();
+        maxResponseTemp.Stat = "Maximum Response";
+        maxResponseTemp.Time = responseTimesList.Max().ToString(@"dd\.hh\:mm\:ss");
+        dashboard_Response.Add(maxResponseTemp);
+
+        Dashboard_Response avgCompletionTemp = new Dashboard_Response();
+        avgCompletionTemp.Stat = "Average Completion";
+        double averageCompletion = completedTimesList.Select(ts => ts.TotalSeconds).Average();
+        TimeSpan averageCompletionToTimeSpan = TimeSpan.FromSeconds(averageCompletion);
+        avgCompletionTemp.Time = averageCompletionToTimeSpan.ToString(@"dd\.hh\:mm\:ss");
+        dashboard_Response.Add(avgCompletionTemp);
+
+        Dashboard_Response maxCompletionTemp = new Dashboard_Response();
+        maxCompletionTemp.Stat = "Maximum Completion";
+        maxCompletionTemp.Time = completedTimesList.Max().ToString(@"dd\.hh\:mm\:ss");
+        dashboard_Response.Add(maxCompletionTemp);
+
+        dashboard_Response = dashboard_Response.OrderBy(t => t.Time).ToList();
+
+    }
+
+}

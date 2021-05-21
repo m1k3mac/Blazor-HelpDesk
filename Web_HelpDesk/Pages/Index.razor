@@ -1,0 +1,526 @@
+﻿@page "/"
+
+<AuthorizeView>
+    <Authorized>
+        @if (tickets == null)
+        {
+            <div class="loader"></div>
+        }
+        else
+        {
+            <div class="d-flex justify-content-center">
+                <button class="btn btn-primary btn-sm ml-2" @onclick="@(() => HeaderButton_New_Click())" type="button"><span class="mx-1 oi oi-envelope-closed" aria-hidden="true"></span>@($"New Tickets {newTickets}")</button>
+                <button class="btn btn-primary btn-sm ml-2" @onclick="@(() => HeaderButton_Open_Click())" type="button"><span class="mx-1 oi oi-envelope-open" aria-hidden="true"></span>@($"Open Tickets {openTickets}")</button>
+                <button class="btn btn-primary btn-sm ml-2" @onclick="@(() => HeaderButton_OnHold_Click())" type="button"><span class="mx-1 oi oi-media-pause" aria-hidden="true"></span>@($"Tickets On Hold {onHoldTickets}")</button>
+                <button class="btn btn-primary btn-sm ml-2" @onclick="@(() => HeaderButton_Closed_Click())" type="button"><span class="mx-1 oi oi-check" aria-hidden="true"></span>Closed Tickets</button>
+                <button class="btn btn-primary btn-sm ml-2 mr-5" @onclick="@(() => HeaderButton_All_Click())" type="button"><span class="mx-1 oi oi-sort-ascending" aria-hidden="true"></span>All Tickets (TOP 1K)</button>
+            </div>
+
+            @if (tickets.Count() >= 1)
+            {
+                <hr />
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <!-- or use any other number .col-md- -->
+                            <div class="table-responsive">
+                                <div class="table">
+                                    <table class="table table-light table-hover">
+                                        <thead>
+                                            <tr style="cursor: pointer;" class="alert-primary">
+                                                @*Removed the sorting arrows. Was working fine but does not look good when there are wide columns. Code block moved to ProjectNotes*@
+
+                                                @if (arrowToggle_Ticket)
+                                                {
+                                                    <th style="width: 8%" @onclick="@(() => Sort("Ticket"))">Ticket<span class="oi oi-caret-top"></span></th>
+                                                }
+                                                else
+                                                {
+                                                    <th style="width: 8%" @onclick="@(() => Sort("Ticket"))">Ticket<span class="oi oi-caret-bottom"></span></th>
+                                                }
+
+                                                @if (arrowToggle_Logged)
+                                                {
+                                                    <th @onclick="@(() => Sort("Logged"))">Logged<span class="oi oi-caret-top"></span></th>
+                                                }
+                                                else
+                                                {
+                                                    <th @onclick="@(() => Sort("Logged"))">Logged<span class="oi oi-caret-bottom"></span></th>
+                                                }
+
+                                                @if (arrowToggle_Creator)
+                                                {
+                                                    <th style="width: 15%" @onclick="@(() => Sort("Creator"))">Creator<span class="oi oi-caret-top"></span></th>
+                                                }
+                                                else
+                                                {
+                                                    <th style="width: 15%" @onclick="@(() => Sort("Creator"))">Creator<span class="oi oi-caret-bottom"></span></th>
+                                                }
+
+                                                <th style="width: 30%" @onclick="@(() => Sort("Subject"))">Subject</th>
+
+                                                @if (arrowToggle_Priority)
+                                                {
+                                                    <th style="width: 8%" @onclick="@(() => Sort("Priority"))">Priority<span class="oi oi-caret-top"></span></th>
+                                                }
+                                                else
+                                                {
+                                                    <th style="width: 8%" @onclick="@(() => Sort("Priority"))">Priority<span class="oi oi-caret-bottom"></span></th>
+                                                }
+
+                                                @if (arrowToggle_Status)
+                                                {
+                                                    <th style="width: 8%" @onclick="@(() => Sort("Status"))">Status<span class="oi oi-caret-top"></span></th>
+                                                }
+                                                else
+                                                {
+                                                    <th style="width: 8%" @onclick="@(() => Sort("Status"))">Status<span class="oi oi-caret-bottom"></span></th>
+                                                }
+
+                                                @if (arrowToggle_Assigned)
+                                                {
+                                                    <th style="width: 15%" @onclick="@(() => Sort("Assigned"))">Assigned<span class="oi oi-caret-top"></span></th>
+                                                }
+                                                else
+                                                {
+                                                    <th style="width: 15%" @onclick="@(() => Sort("Assigned"))">Assigned<span class="oi oi-caret-bottom"></span></th>
+                                                }                                                
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var ticket in tickets)
+                                            {
+                                                if (ticket.Status != null && ticket.Priority != null)
+                                                {
+                                            <tr>
+                                                <td>@ticket.Id</td>
+                                                <td>@ticket.Logged</td>
+                                                <td>@ticket.Creator</td>
+                                                <td>@ticket.Subject</td>
+
+                                                @if (ticket.Priority.PriorityLevel == "Critical")
+                                                {
+                                                    <td class="text-danger font-weight-bold">@ticket.Priority.PriorityLevel</td>
+                                                }
+                                                else if (ticket.Priority.PriorityLevel == "High")
+                                                {
+                                                    <td class="text-warning font-weight-bold">@ticket.Priority.PriorityLevel</td>
+                                                }
+                                                else
+                                                {
+                                                    <td class="font-weight-bold">@ticket.Priority.PriorityLevel</td>
+                                                }
+
+                                                @if (ticket.Status.TicketStatus == "New")
+                                                {
+                                                    <td class="text-warning font-weight-bold ">@ticket.Status.TicketStatus</td>
+                                                }
+                                                else if (ticket.Status.TicketStatus == "Closed")
+                                                {
+                                                    <td class="text-success font-weight-bold">@ticket.Status.TicketStatus</td>
+                                                }
+                                                else
+                                                {
+                                                    <td class="font-weight-bold">@ticket.Status.TicketStatus</td>
+                                                }
+
+                                                @if (ticket.Assignee == null)
+                                                {
+                                                    <td>Not Assigned</td>
+                                                }
+                                                else
+                                                {
+                                                    <td>@ticket.Assignee</td>
+                                                }
+
+                                                @if ((userIsSupportStaff) && ticket.Status.TicketStatus == "New")
+                                                {
+                                                    <td><button type="button" class="btn btn-danger" @onclick="(() => Claim_Click(ticket.Id))">Claim</button></td>
+                                                }
+                                                else if ((userIsSupportStaff) && ticket.Status.TicketStatus != "Closed")
+                                                {
+                                                    var userCommentExists = ticketDetails.Where(l => l.TicketId == ticket.Id).FirstOrDefault();//.First().Comments.Contains("User Comment:");
+
+                                                    @if (userCommentExists != null && userCommentExists.Comments.Contains("User Comment:"))
+                                                    {
+                                                        <td><button type="button" class="btn btn-danger" @onclick="(() => Edit_Click(ticket.Id))"><span class="mx-1 oi oi oi-envelope-closed" aria-hidden="true"></span></button></td>                                                        
+                                                    }
+                                                    else
+                                                    {
+                                                        <td><button type="button" class="btn btn-primary" @onclick="(() => Edit_Click(ticket.Id))">Edit</button></td>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <td><button type="button" class="btn btn-primary" @onclick="(() => View_Click(ticket.Id))">View</button></td>
+                                                }
+
+                                                @if (ticket.Status.TicketStatus != "Closed" && (ticket.Priority.PriorityLevel == "Critical" || ticket.Priority.PriorityLevel == "High"))
+                                                {
+                                                    <td class="spinner-grow text-danger"></td>
+                                                }
+                                            </tr>
+                                                }
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <p></p>
+                <hr />
+                <div class="d-flex justify-content-center">
+                    <p></p>
+                    <h4>You have no tickets outstanding here </h4>
+                </div>
+                
+            }
+
+            @if (showPaginationControls)
+            {
+
+                <div class="container d-flex justify-content-end" style="cursor: pointer;">
+                    <ul class="pagination">
+                        @if (paginationCounter >= totalCount)
+                        {
+                            <li class="page-item"><a class="page-link">Previous</a></li>
+                        }
+                        else
+                        {
+                            <li class="page-item active"><a class="page-link" @onclick="@PreviousPage">Previous</a></li>
+                        }
+
+                        <li class="page-item"><a class="page-link">@paginationCounter</a></li>
+
+                        @if (paginationCounter <= showItemsPerPage)
+                        {
+                            <li class="page-item"><a class="page-link">Next</a></li>
+                        }
+                        else
+                        {
+                            <li class="page-item active"><a class="page-link" @onclick="@NextPage">Next</a></li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <MMDialogs @ref="confirmationDialog" ConfirmationCallback="ReturnedDialogResult"
+                       DialogTitle="@($"Ticket: { selectedTicketId}")" DialogMessage=@($"Would you like to claim this ticket?")>
+            </MMDialogs>
+            <MMDialogs @ref="confirmationDialogAlreadyClaimed" ConfirmationCallback="ReturnedDialogResult"
+                       DialogTitle="@($"Ticket: { selectedTicketId} already claimed")" DialogMessage=@($"This ticket has already been claimed. Sure you want to claim this ticket?")>
+            </MMDialogs>
+            <MMDialogs @ref="confirmationDialogAlreadyClaimedByYou"
+                       DialogTitle="@($"Ticket: { selectedTicketId} already claimed")" DialogMessage=@($"You have already claimed this Ticket!")>
+            </MMDialogs>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code
+{
+    [CascadingParameter]
+    public Task<AuthenticationState> authenticationStateTask { get; set; } // refer to notes [AUTHENTICATION and PAGES]
+
+    [Inject] private ITicketService ticketService { get; set; }
+    [Inject] private IUserDetailsService userDetailService { get; set; }
+    [Inject] private IUserRoleService userRoleService { get; set; }
+    [Inject] private IAdditionalCriteria criteriaService { get; set; }
+
+    private IEnumerable<Ticket> tickets { get; set; }
+    private IEnumerable<Ticket> ticketsCopy { get; set; }
+    private IEnumerable<string> userInRoles { get; set; }
+    private Ticket ticket { get; set; }
+
+    //private TicketDetail ticketDetail { get; set; } = new TicketDetail();
+    private List<TicketDetail> ticketDetails { get; set; } = new List<TicketDetail>();
+
+    private UserDetail loggedOnUserDetails { get; set; }
+    [Inject] private NavigationManager navigationManager { get; set; }
+    public MMDialogs confirmationDialog { get; set; }
+    public MMDialogs confirmationDialogAlreadyClaimed { get; set; }
+    public MMDialogs confirmationDialogAlreadyClaimedByYou { get; set; }
+    private bool sortToggle, arrowToggle_Ticket, arrowToggle_Logged, arrowToggle_Creator, arrowToggle_Priority, arrowToggle_Status, arrowToggle_Assigned;
+    protected EmailSender emailSender { get; set; } = new EmailSender();  // Refer to ProjectNotes [EmailSender]  
+
+    int pageNumber = 1, pageSize = 15, showItemsPerPage = 15; // Use this to change how many items to display per page
+    int totalCount;
+    bool showPaginationControls;
+    int paginationCounter;
+    bool userIsSupportStaff = false;
+    int selectedTicketId;
+    int newTickets, openTickets, onHoldTickets;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState = await authenticationStateTask;
+        var currentUser = (await authenticationStateTask).User;
+
+        if (currentUser.Identity.IsAuthenticated)
+        {
+            // Check if current user has completed entering their details
+            loggedOnUserDetails = await userDetailService.GetUserDetailsAsync(currentUser.Identity.Name);
+            if (loggedOnUserDetails == null)
+            {
+                navigationManager.NavigateTo($"/EditUserDetails/{currentUser.Identity.Name}");
+            }
+        }
+        else
+        {
+            navigationManager.NavigateTo("/Identity/Account/Login");
+        }
+
+        // ------------------------------------------------------------------------------------------------------------
+        // -- Check if 'Administrator' and 'Support' roles exist, if not then create them. Usually for first time setup
+
+        //bool adminExists = await userRoleService.DoesRoleExistAsync("Administrators");
+        //bool supportExists = await userRoleService.DoesRoleExistAsync("Support");
+        //if (!adminExists)
+        //    await userRoleService.CreateNewRoleAsync("Administrators");
+        //if (!supportExists)
+        //    await userRoleService.CreateNewRoleAsync("Support");
+
+        ////--For manually adding a user to Role. Usually used at Dev time to add admin role.
+        //await userRoleService.AddUserToRoleAsync(currentUser.Identity.Name, "Administrators");
+
+        // ------------------------------------------------------------------------------------------------------------
+
+        userInRoles = await userRoleService.GetUserInRolesAsync(currentUser.Identity.Name);
+        if(userInRoles.Contains("Administrators") || userInRoles.Contains("Support"))
+        {
+            userIsSupportStaff = true;
+        }
+        tickets = await ticketService.GetTicketsAsync(loggedOnUserDetails.Email, userInRoles.ToList(), TicketStates.Incomplete);
+        newTickets = tickets.Where(l => l.Status.TicketStatus == "New").Count();
+        openTickets = tickets.Where(l => l.Status.TicketStatus == "Open").Count();
+        onHoldTickets = tickets.Where(l => l.Status.TicketStatus == "On Hold").Count();
+
+        // For each ticket in tickets get the last comment from ticketDetails and store in ticketDetails list
+        foreach (var item in tickets)
+        {
+            var details = await ticketService.GetTicketDetailsAsync(item.Id);
+            if(details.Count() > 0)
+                ticketDetails.Add(details.LastOrDefault());
+        }
+    }
+
+    private async Task Claim_Click(int ticketId)
+    {
+        // Need to force database refresh here. Even if other user has claimed ticket and the below runds to get the assignee status of that ticket it still shows old data before the user claimed the ticket.
+
+        selectedTicketId = ticketId;
+        ticket = await ticketService.GetTicketAsync(ticketId);
+
+        // First check if this ticket has not been claimed by another user while the browser was idle and not refreshed
+        if (ticket.Assignee == $"{loggedOnUserDetails.FirstName} {loggedOnUserDetails.LastName}")
+        {
+            confirmationDialogAlreadyClaimedByYou.ShowDialog_Message();
+        }
+        else if(ticket.Assignee != null)
+        {
+            confirmationDialogAlreadyClaimed.ShowDialog_Confirmation();
+        }
+        else
+        {
+            confirmationDialog.ShowDialog_Confirmation();
+        }
+    }
+
+    private void Edit_Click(int ticketId)
+    {
+        navigationManager.NavigateTo($"/EditTicket/{ticketId}");
+    }
+
+    private void View_Click(int ticketId)
+    {
+        navigationManager.NavigateTo($"/ViewTicket/{ticketId}");
+    }
+
+    protected async Task ReturnedDialogResult(bool result)
+    {
+        if (result)
+        {
+            // Create first comment line which will show the datetime when the ticket was claimed
+            ticket.Assignee = $"{loggedOnUserDetails.FirstName} {loggedOnUserDetails.LastName}";
+            ticket.StatusId = 2;
+
+            await ticketService.UpdateTicketAsync(ticket, $"Ticket Claimed by: {ticket.Assignee}");
+
+            // Send the user an email notifying that ticket has been claimed and by which support user
+            List<string> recipients = new List<string>();
+            recipients.Add(ticket.EmailAddress);
+
+            // Check if other users are to receive notifications for this department.
+            var additionalNotifications = await criteriaService.GetAdditionalNotificationsByDeptAsync(ticket.Department);
+            if (additionalNotifications.Count() > 0)
+            {
+                foreach (var item in additionalNotifications)
+                {
+                    if (item.UserDetail.Email != ticket.EmailAddress) // do not add users email a second time
+                        recipients.Add(item.UserDetail.Email);
+                }
+            }
+
+            string mailBody = $"<b><p>Message from {StaticData._companyName}</p>"
+            + $"<p>YOUR TICKET IS IN PROGRESS</p><hr />"
+            + $"<p>DETAILS</p>"
+            + $"<p>Ticket: {ticket.Id}</p>"
+            + $"<p>Claimed By: {ticket.Assignee}</p>"
+            + $"<p>Date: {DateTime.Now}</p>"
+            + $"<p>Subject: {ticket.Subject}</p></b>"
+            + $"<hr />";
+
+            await emailSender.MM_SendEmailAsync(recipients, $"YOUR TICKET: {ticket.Id} HAS BEEN CLAIMED", mailBody);
+
+            navigationManager.NavigateTo($"/EditTicket/{ticket.Id}");
+        }
+    }
+
+    private void NextPage() // Pagination
+    {
+        pageNumber++;
+        paginationCounter -= showItemsPerPage;
+        tickets = ticketsCopy.Skip((pageNumber - 1) * pageSize).Take(pageSize);
+    }
+
+    private void PreviousPage() // Pagination
+    {
+        paginationCounter += showItemsPerPage;
+        pageNumber--;
+        tickets = ticketsCopy.Skip((pageNumber - 1) * pageSize).Take(pageSize);
+    }
+
+    private void Sort(string sortBy)
+    {
+        // Table header sorting
+
+        if (!sortToggle && sortBy == "Ticket")
+        {
+            tickets = tickets.OrderBy(s => s.Id);
+            sortToggle = true;
+            arrowToggle_Ticket = true;
+        }
+        else if (sortToggle && sortBy == "Ticket")
+        {
+            tickets = tickets.OrderByDescending(s => s.Id);
+            sortToggle = false;
+            arrowToggle_Ticket = false;
+        }
+
+        if (!sortToggle && sortBy == "Assigned")
+        {
+            tickets = tickets.OrderBy(s => s.Assignee);
+            sortToggle = true;
+            arrowToggle_Assigned = true;
+        }
+        else if (sortToggle && sortBy == "Assigned")
+        {
+            tickets = tickets.OrderByDescending(s => s.Assignee);
+            sortToggle = false;
+            arrowToggle_Assigned = false;
+        }
+
+        if (!sortToggle && sortBy == "Logged")
+        {
+            tickets = tickets.OrderBy(s => s.Logged);
+            sortToggle = true;
+            arrowToggle_Logged = true;
+        }
+        else if (sortToggle && sortBy == "Logged")
+        {
+            tickets = tickets.OrderByDescending(s => s.Logged);
+            sortToggle = false;
+            arrowToggle_Logged = false;
+        }
+
+        if (!sortToggle && sortBy == "Creator")
+        {
+            tickets = tickets.OrderBy(s => s.Creator);
+            sortToggle = true;
+            arrowToggle_Creator = true;
+        }
+        else if (sortToggle && sortBy == "Creator")
+        {
+            tickets = tickets.OrderByDescending(s => s.Creator);
+            sortToggle = false;
+            arrowToggle_Creator = false;
+        }
+
+        if (!sortToggle && sortBy == "Priority")
+        {
+            tickets = tickets.OrderBy(s => s.Priority.PriorityLevel);
+            sortToggle = true;
+            arrowToggle_Priority = true;
+        }
+        else if (sortToggle && sortBy == "Priority")
+        {
+            tickets = tickets.OrderByDescending(s => s.Priority.PriorityLevel);
+            sortToggle = false;
+            arrowToggle_Priority = false;
+        }
+
+        if (!sortToggle && sortBy == "Status")
+        {
+            tickets = tickets.OrderBy(s => s.Status.TicketStatus);
+            sortToggle = true;
+            arrowToggle_Status = true;
+        }
+        else if (sortToggle && sortBy == "Status")
+        {
+            tickets = tickets.OrderByDescending(s => s.Status.TicketStatus);
+            sortToggle = false;
+            arrowToggle_Status = false;
+        }
+    }
+
+    private async Task HeaderButton_New_Click()
+    {
+        showPaginationControls = false;
+        tickets = await ticketService.GetTicketsAsync(loggedOnUserDetails.Email, userInRoles.ToList(), TicketStates.New);
+    }
+
+    private async Task HeaderButton_Open_Click()
+    {
+        showPaginationControls = false;
+        tickets = await ticketService.GetTicketsAsync(loggedOnUserDetails.Email, userInRoles.ToList(), TicketStates.Open);
+    }
+
+    private async Task HeaderButton_OnHold_Click()
+    {
+        showPaginationControls = false;
+        tickets = await ticketService.GetTicketsAsync(loggedOnUserDetails.Email, userInRoles.ToList(), TicketStates.OnHold);
+    }
+
+    private async Task HeaderButton_Closed_Click()
+    {
+        tickets = await ticketService.GetTicketsAsync(loggedOnUserDetails.Email, userInRoles.ToList(), TicketStates.Closed);
+        ticketsCopy = tickets; // used for Next Page, Previous Page Methods above for Pagination controls
+        totalCount = tickets.Count();
+        paginationCounter = totalCount;
+        pageNumber = 1;
+
+        tickets = ticketsCopy.Skip((pageNumber - 1) * pageSize).Take(pageSize);
+
+        if(totalCount > showItemsPerPage)
+            showPaginationControls = true;
+    }
+
+    private async Task HeaderButton_All_Click()
+    {
+        tickets = await ticketService.GetTicketsAsync(loggedOnUserDetails.Email, userInRoles.ToList(), TicketStates.All);
+        ticketsCopy = tickets; // used for Next Page, Previous Page Methods above for Pagination controls
+        totalCount = tickets.Count();
+        paginationCounter = totalCount;
+        pageNumber = 1;
+
+        tickets = ticketsCopy.Skip((pageNumber - 1) * pageSize).Take(pageSize);
+
+        if (totalCount > showItemsPerPage)
+            showPaginationControls = true;
+    }
+}
