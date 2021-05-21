@@ -30,7 +30,8 @@ Uncomment the lines so the section looks like this below:
 (8) Comment out the section above again - important!
 (9) Edit the URL in the EditTicket.razor page to your URL (line number 286)
 (10) Edit the StaticData.cs file in the Data folder in the project. Enter your company and smtp details here. 
-Thats it! 
+Thats it!
+Company logo can be changed by replacing the file logo_placeholder.png under wwwroot\images in the solution explorer.
 
 NB: The dashboard will not work until you have created and closed some tickets. It needs some data to display statistics.
 
